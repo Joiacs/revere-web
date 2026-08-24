@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * TODO(fonts): Founders Grotesk is Revere's licensed primary typeface
+ * (Klim Type Foundry) and cannot be self-hosted without a webfont license.
+ * General Sans (Fontshare, self-hosted below) is the stand-in — it is a
+ * geometric grotesque with similar proportions and tracking.
+ *
+ * SINGLE SWAP POINT: once the agency delivers licensed Founders Grotesk
+ * woff2 files, drop them in /public/fonts/founders-grotesk/, point the
+ * @font-face src paths below at them, and rename the family below (and in
+ * tailwind.config.js -> theme.fontFamily.sans) to "Founders Grotesk".
+ * No other file needs to change.
+ */
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/general-sans/GeneralSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/general-sans/GeneralSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/general-sans/GeneralSans-Semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'General Sans';
+  src: url('/fonts/general-sans/GeneralSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+  scroll-padding-top: 76px;
+}
+
+body {
+  background-color: #0f0524;
+  color: #f3edff;
+  font-family: 'General Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background-color: #7532e4;
+  color: #ffffff;
+}
+
+/* Visible, high-contrast focus ring for dark backgrounds (WCAG AA) */
+:focus-visible {
+  outline: 2px solid #d3a1ff;
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.sr-only-focusable:not(:focus) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
