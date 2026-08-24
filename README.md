@@ -18,26 +18,60 @@ The signup form posts to [Kit](https://kit.com) (formerly ConvertKit). The form 
 from an environment variable so it's a one-line change to go live.
 
 1. Copy `.env.example` to `.env`.
-2. In the Kit dashboard, open the beta signup form → **Share** → **Embed**, and copy the
-   numeric form ID out of the embed snippet's URL.
+2. Get the real numeric form ID (see the callout below — **this is not** the ID shown in
+   Kit's default dashboard embed snippet).
 3. Paste it into `.env`:
    ```
-   VITE_KIT_FORM_ID=1234567
+   VITE_KIT_FORM_ID=9840503
    ```
 4. Restart `npm run dev` (Vite only reads `.env` on startup).
 
-**Before launch, double-check the endpoint.** `src/lib/submitSignup.ts` posts to Kit's
-standard public-forms endpoint (`https://app.kit.com/forms/{ID}/subscriptions`) with the
-field names Kit's own embed snippet uses (`email_address`, `first_name`,
-`fields[organization_name]`). This is the documented default, but Kit has changed this
-shape before (the ConvertKit → Kit rebrand) and a custom field's exact key can vary per
-account. Compare the embed snippet shown in your dashboard against the constants at the
-top of `submitSignup()` — if anything differs, that function is the only place you need to
-edit. Every other part of the form (validation, states, honeypot) is already wired up
-against it.
+**⚠️ Kit's dashboard "Embed" snippet gives you the wrong ID for this integration.** Kit's
+current embed UI hands you a `<script async data-uid="132da3bd7c" src="https://your-sub
+domain.kit.com/132da3bd7c/index.js">` snippet. That `data-uid` is a widget-loader ID, not
+the form ID the subscribe endpoint expects — pasting it into `.env` as-is silently breaks
+the integration (the request goes to a form that doesn't exist, so nothing shows up in Kit
+and nothing useful shows up in the browser's Network tab either, since a plausible-looking
+`data-uid` doesn't fail loudly).
+
+The real numeric form ID lives inside that script. To find it:
+```bash
+curl -s https://your-subdomain.kit.com/<data-uid>/index.js | grep -o 'forms/[0-9]*/subscriptions'
+```
+That prints the real `<form action="https://app.kit.com/forms/{NUMERIC_ID}/subscriptions">`
+— use that numeric ID, not the `data-uid`. The same fetch also shows the form's actual
+field names (they can vary by form/account) — `src/lib/submitSignup.ts` currently posts
+`email_address`, `fields[first_name]`, and `fields[organization]`, confirmed against this
+account's live form. If you edit the form in Kit later (rename fields, add new ones), redo
+this check and update the field names at the top of `submitSignup()` to match — that
+function is the only place that needs to change.
 
 Until `VITE_KIT_FORM_ID` is set, the form fails gracefully with an inline error asking you
 to configure it — it never silently drops a signup.
+
+## CAPTCHA (Cloudflare Turnstile) setup
+
+The signup form requires a Cloudflare Turnstile "click the box" check before it can be
+submitted (`src/components/Turnstile.tsx`). **This is a deliberate exception** to this
+project's otherwise-strict zero-third-party-request rule — it was added on request after
+the initial build, trading a small amount of the site's privacy stance for spam
+resistance. There's no server here to call Cloudflare's verification API from, so this
+only gates the submit button client-side; it stops generic form-spam bots (which don't
+run the challenge) but isn't cryptographic proof against a targeted attacker.
+
+1. Get a free site key: [Cloudflare dashboard](https://dash.cloudflare.com/) → **Turnstile**
+   → **Add site** (no billing info needed).
+2. Add it to `.env`:
+   ```
+   VITE_TURNSTILE_SITE_KEY=0x4AAAAAAA...
+   ```
+3. Restart `npm run dev`.
+
+Until it's set, the widget renders a small inline message instead of the checkbox, and the
+submit button stays disabled — same fail-gracefully approach as the Kit form ID. For local
+testing without a real key, Cloudflare publishes a public "always passes" test key:
+`1x00000000000000000000AA` — it renders a visible "FOR TESTING ONLY" watermark, so swap in
+the real key before launch.
 
 ## Swapping in the real Founders Grotesk font
 
@@ -107,6 +141,11 @@ environment and aren't known yet.
 
 ## What's intentionally not here
 
-No analytics, no tag manager, no third-party embeds or fonts, no `localStorage`, no dark
-mode toggle (the site is dark by design), no CMS or router. See the project brief for the
-full list of constraints — they're load-bearing, not oversights.
+No analytics, no tag manager, no third-party fonts, no `localStorage`, no dark mode toggle
+(the site is dark by design), no CMS or router. See the project brief for the full list of
+constraints — they're load-bearing, not oversights.
+
+The one deliberate exception is **Cloudflare Turnstile** on the signup form (see above) —
+originally the brief called for zero third-party requests site-wide, and that held until
+CAPTCHA was requested afterward. Everything else — fonts, icons, the brand motifs — stays
+self-hosted/inline as originally specified.

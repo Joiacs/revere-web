@@ -11,14 +11,20 @@ const KIT_FORM_ID = import.meta.env.VITE_KIT_FORM_ID as string | undefined
 /**
  * Submits the beta signup to Kit (formerly ConvertKit).
  *
- * TODO(kit-integration): This targets Kit's standard public forms endpoint
- * and field names (`email_address`, `first_name`, `fields[organization_name]`),
- * which is what Kit's own JS embed snippet posts to. Before launch, open the
- * form in the Kit dashboard -> Share -> Embed, and diff the endpoint URL and
- * field names shown there against what's below — Kit has changed this
- * shape before (ConvertKit -> Kit rebrand) and per-account form config
- * (e.g. a custom "organization" field's actual key) can vary. If anything
- * differs, this is the only place that needs to change.
+ * IMPORTANT: VITE_KIT_FORM_ID must be the numeric form ID from the real
+ * <form action="https://app.kit.com/forms/{ID}/subscriptions"> markup —
+ * NOT the `data-uid` hash Kit's dashboard shows in its <script async
+ * data-uid="..."> embed snippet. That script tag loads a widget that
+ * dynamically injects the real form; the hash it carries is a
+ * widget-loader ID, not the form ID the subscribe endpoint expects. Find
+ * the real numeric ID by viewing that script's response (or the rendered
+ * form's `action`/`data-sv-form` attribute) directly, e.g.:
+ *   curl https://<your-subdomain>.kit.com/<data-uid>/index.js | grep forms/
+ *
+ * `email_address` is Kit's fixed top-level field. `fields[first_name]` and
+ * `fields[organization]` are this form's actual field keys, confirmed
+ * straight from its live embed markup — if fields are ever renamed in the
+ * Kit dashboard, their keys (and the lines below) may change too.
  */
 export async function submitSignup(data: SignupData): Promise<void> {
   if (!KIT_FORM_ID) {
@@ -31,9 +37,9 @@ export async function submitSignup(data: SignupData): Promise<void> {
 
   const body = new FormData()
   body.set('email_address', data.email)
-  if (data.name.trim()) body.set('first_name', data.name.trim())
+  if (data.name.trim()) body.set('fields[first_name]', data.name.trim())
   if (data.organization.trim()) {
-    body.set('fields[organization_name]', data.organization.trim())
+    body.set('fields[organization]', data.organization.trim())
   }
 
   let response: Response

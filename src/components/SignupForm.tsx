@@ -1,6 +1,7 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { isValidEmail } from '../lib/validateEmail'
 import { submitSignup, SignupError } from '../lib/submitSignup'
+import { Turnstile, type TurnstileHandle } from './Turnstile'
 
 type Status = 'idle' | 'submitting' | 'success' | 'error'
 
@@ -9,6 +10,8 @@ export function SignupForm() {
   const [email, setEmail] = useState('')
   const [organization, setOrganization] = useState('')
   const [honeypot, setHoneypot] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileHandle>(null)
   const [status, setStatus] = useState<Status>('idle')
   const [validationError, setValidationError] = useState('')
   const [submitError, setSubmitError] = useState('')
@@ -27,6 +30,10 @@ export function SignupForm() {
       setValidationError('Enter a valid email address to join the beta.')
       return
     }
+    if (!turnstileToken) {
+      setValidationError('Please complete the verification check below.')
+      return
+    }
     setValidationError('')
     setSubmitError('')
     setStatus('submitting')
@@ -41,6 +48,9 @@ export function SignupForm() {
           : 'Something went wrong. Please try again.',
       )
       setStatus('error')
+      // Turnstile tokens are single-use — re-arm the widget for a retry.
+      turnstileRef.current?.reset()
+      setTurnstileToken(null)
     }
   }
 
@@ -75,11 +85,11 @@ export function SignupForm() {
           border: 0,
         }}
       >
-        <label htmlFor="organization_website">Leave this field empty</label>
+        <label htmlFor="hp_field_9k2">Leave this field empty</label>
         <input
           type="text"
-          id="organization_website"
-          name="organization_website"
+          id="hp_field_9k2"
+          name="hp_field_9k2"
           tabIndex={-1}
           autoComplete="off"
           value={honeypot}
@@ -138,6 +148,12 @@ export function SignupForm() {
         />
       </div>
 
+      <Turnstile
+        ref={turnstileRef}
+        onVerify={setTurnstileToken}
+        onExpire={() => setTurnstileToken(null)}
+      />
+
       {submitError && (
         <p role="alert" aria-live="assertive" className="text-sm text-golden-orange">
           {submitError}
@@ -146,7 +162,7 @@ export function SignupForm() {
 
       <button
         type="submit"
-        disabled={status === 'submitting'}
+        disabled={status === 'submitting' || !turnstileToken}
         className="w-full rounded-full bg-white px-6 py-3 text-base font-medium text-royal-iris transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:px-8"
       >
         {status === 'submitting' ? 'Joining…' : 'Join the Beta'}
